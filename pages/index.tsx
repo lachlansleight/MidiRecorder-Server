@@ -3,21 +3,37 @@ import { getDatabase, onValue, ref } from "firebase/database";
 import dayjs from "dayjs";
 import { FaCheckCircle, FaSync, FaTimesCircle, FaTrash } from "react-icons/fa";
 import axios from "axios";
+import weeklogFormat from "lib/plugins/weeklogFormat";
 import useAuth from "lib/hooks/useAuth";
 import Layout from "components/layout/Layout";
 import RecordingTile from "components/recordings/RecordingTile";
 import { Recording, RecordingMetadata } from "lib/data/types";
 import RecordingPlayer from "components/recordings/RecordingPlayer";
+import { durationToString } from "lib/utils";
+
+dayjs.extend(weeklogFormat);
 
 interface RecordingGroup {
     name: string;
     recordings: RecordingMetadata[];
 }
 
+interface RecordingGroupWithWeek {
+    timestamp: number;
+    name: string;
+    duration: number;
+    weeks: {
+        name: string;
+        duration: number;
+        recordings: RecordingMetadata[];
+    }[];
+}
+
 const HomePage = (): JSX.Element => {
     const [selecting, setSelecting] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
     const [recordings, setRecordings] = useState<RecordingGroup[]>([]);
+    const [recordingsWithWeeks, setRecordingsWithWeeks] = useState<RecordingGroupWithWeek[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
 
@@ -117,7 +133,109 @@ const HomePage = (): JSX.Element => {
                 recordings: randomChoices,
             });
             setRecordings(finalGroups);
-            console.log(finalGroups);
+
+            const oldestRecording = dayjs(sortedRecordings[sortedRecordings.length - 1].recordedAt);
+            const newestRecording = dayjs(sortedRecordings[0].recordedAt);
+
+            const groupsWithWeeks: Record<string, RecordingGroupWithWeek> = {};
+
+            //fill full array
+            for (let i = oldestRecording.year(); i <= newestRecording.year(); i++) {
+                for (let j = 0; j < 12; j++) {
+                    if (i === oldestRecording.year() && j < oldestRecording.month()) continue;
+                    if (i === newestRecording.year() && j >= newestRecording.month()) continue;
+                    const key = dayjs(new Date(i, j, 5)).format("MMMM") + " " + i;
+                    groupsWithWeeks[key] = {
+                        name: key,
+                        duration: 0,
+                        timestamp: dayjs(new Date(i, j, 5)).valueOf(),
+                        weeks: [
+                            { name: "Week 1", recordings: [], duration: 0 },
+                            { name: "Week 2", recordings: [], duration: 0 },
+                            { name: "Week 3", recordings: [], duration: 0 },
+                            { name: "Week 4", recordings: [], duration: 0 },
+                        ],
+                    };
+                }
+            }
+
+            //then add in the actual recordings + add any missing weeks (as some months have five weeks)
+            finalGroups.forEach(group => {
+                const key = group.name;
+                const isCustom =
+                    key.startsWith("Earlier") ||
+                    key.startsWith("Eight Random") ||
+                    key.startsWith("Today") ||
+                    key.startsWith("Yesterday");
+                let item = groupsWithWeeks[key];
+                if (!item) {
+                    if (!isCustom) {
+                        item = {
+                            name: key,
+                            duration: 0,
+                            timestamp: new Date(group.recordings[0].recordedAt).valueOf(),
+                            weeks: [
+                                { name: "Week 1", recordings: [], duration: 0 },
+                                { name: "Week 2", recordings: [], duration: 0 },
+                                { name: "Week 3", recordings: [], duration: 0 },
+                                { name: "Week 4", recordings: [], duration: 0 },
+                            ],
+                        };
+                    } else {
+                        item = {
+                            name: key,
+                            duration: 0,
+                            timestamp: key.startsWith("Today")
+                                ? new Date().valueOf()
+                                : key.startsWith("Yesterday")
+                                ? new Date().valueOf() - 24 * 60 * 60 * 1000
+                                : key.startsWith("Earlier this week")
+                                ? new Date().valueOf() - 7 * 24 * 60 * 60 * 1000
+                                : key.startsWith("Earlier this month")
+                                ? new Date().valueOf() - 30 * 24 * 60 * 60 * 1000
+                                : 0,
+                            weeks: key.endsWith("month")
+                                ? []
+                                : [{ name: "-", recordings: [], duration: 0 }],
+                        };
+                    }
+                }
+
+                group.recordings.forEach(recording => {
+                    const week =
+                        isCustom && !key.endsWith("month")
+                            ? "-"
+                            : "Week " + dayjs(recording.recordedAt).weeklogWeek().week;
+                    let index = item.weeks.findIndex(w => w.name === week);
+                    if (index === -1) {
+                        item.weeks.push({ name: week, recordings: [], duration: 0 });
+                        index = item.weeks.length - 1;
+                    }
+                    item.weeks[index].recordings.push(recording);
+                    item.weeks[index].duration += recording.duration;
+                    item.duration += recording.duration;
+                });
+                item.weeks.reverse();
+
+                groupsWithWeeks[group.name] = item;
+                // if(!groupsWithWeeks[group.name]) groupsWithWeeks[group.name] = { name: group.name, weeks: [] };
+                // groupsWithWeeks[group.name].weeks.push({ name: group.name, recordings: weeks[group.name] });
+            });
+            const groupsWithWeeksFinal = Object.values(groupsWithWeeks);
+            groupsWithWeeksFinal.sort((a, b) => {
+                const valA = a.timestamp;
+                const valB = b.timestamp;
+                // if(a.name.startsWith("Earlier")) valA = 0;
+                // else if(a.name.startsWith("Eight Random")) valA = -1;
+                // else if(a.name.startsWith("Today")) valA = -2;
+
+                // if(b.name.startsWith("Earlier")) valB = 0;
+                // else if(b.name.startsWith("Eight Random")) valB = -1;
+                // else if(b.name.startsWith("Today")) valB = -2;
+                return valB - valA;
+            });
+            setRecordingsWithWeeks(groupsWithWeeksFinal);
+            console.log(groupsWithWeeksFinal);
             setLoading(false);
         });
     }, []);
@@ -254,11 +372,10 @@ const HomePage = (): JSX.Element => {
                 </div>
             ) : (
                 <div className="">
-                    {recordings.map((recordingGroup, i) => {
+                    {/* {recordings.map((recordingGroup, i) => {
                         return (
                             // <p>{recordingGroup.name}</p>
                             <div key={i} className="mt-4">
-                                {/* add tooltip: */}
                                 <h2
                                     className="text-2xl font-bold text-center"
                                     title={`${(
@@ -314,6 +431,91 @@ const HomePage = (): JSX.Element => {
                                                         : null
                                                 }
                                             />
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })} */}
+                    {recordingsWithWeeks.map((recordingGroup, i) => {
+                        return (
+                            // <p>{recordingGroup.name}</p>
+                            <div
+                                key={i}
+                                className="mt-4 border border-white border-opacity-10 rounded-lg p-4"
+                            >
+                                <h2 className="text-2xl font-bold text-center">
+                                    {recordingGroup.name}
+                                    <span className="ml-2 text-sm text-white text-opacity-50">
+                                        {durationToString(
+                                            Math.round(recordingGroup.duration),
+                                            true
+                                        )}
+                                    </span>
+                                </h2>
+                                <div className="flex flex-col justify-center items-center gap-2">
+                                    {recordingGroup.weeks.map((week, j) => {
+                                        return (
+                                            <div
+                                                key={j}
+                                                className="flex flex-col justify-start items start"
+                                            >
+                                                <h3 className="text-xs text-white text-opacity-50 w-full text-center">
+                                                    {week.name} -{" "}
+                                                    {durationToString(
+                                                        Math.round(week.duration),
+                                                        true
+                                                    )}
+                                                </h3>
+                                                <div className="flex flex-wrap justify-center items-start gap-2 min-h-[75px]">
+                                                    {week.recordings.map(recording => {
+                                                        return (
+                                                            <RecordingTile
+                                                                key={recording.recordedAt.valueOf()}
+                                                                recording={recording}
+                                                                className={`${
+                                                                    selecting
+                                                                        ? selected.findIndex(
+                                                                              id =>
+                                                                                  id ===
+                                                                                  recording.id
+                                                                          ) !== -1
+                                                                            ? ""
+                                                                            : ""
+                                                                        : ""
+                                                                }`}
+                                                                style={{
+                                                                    width: `calc(1.5 * ${
+                                                                        recording.duration / 60
+                                                                    }rem + 8rem)`,
+                                                                }}
+                                                                selecting={selecting}
+                                                                selected={
+                                                                    selected.findIndex(
+                                                                        id => id === recording.id
+                                                                    ) !== -1
+                                                                }
+                                                                onSelectChange={handleSelectChanged}
+                                                                onMouseEnter={() => {
+                                                                    // loadAndPlay(recording);
+                                                                }}
+                                                                onMouseLeave={() => {
+                                                                    setCurrentRecording(null);
+                                                                    setPlaying(false);
+                                                                }}
+                                                                playbackTime={
+                                                                    currentRecording &&
+                                                                    recording.id ===
+                                                                        currentRecording.id &&
+                                                                    playbackTime !== null
+                                                                        ? playbackTime
+                                                                        : null
+                                                                }
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         );
                                     })}
                                 </div>

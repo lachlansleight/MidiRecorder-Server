@@ -8,7 +8,7 @@ import utc from "dayjs/plugin/utc";
 import { FaCheckCircle, FaRegCircle } from "react-icons/fa";
 
 import { RecordingMetadata } from "../../lib/data/types";
-import { semitoneToHue } from "../../lib/utils";
+import { durationToString, semitoneToHue } from "../../lib/utils";
 import StarToggle from "./StarToggle";
 
 dayjs.extend(utc);
@@ -20,25 +20,6 @@ interface GradientSemitone {
     proportion: number;
     hue: number;
 }
-
-const durationToString = (duration: number): string => {
-    let output = "";
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration - hours * 3600) / 60);
-    const seconds = duration - minutes * 60 - hours * 3600;
-    if (hours > 0) {
-        output += hours + ":";
-        if (minutes > 10) output += minutes + ":";
-        else if (minutes > 0) output += "0" + minutes + ":";
-        else output += "00:";
-    } else if (minutes > 0) {
-        output += minutes + ":";
-    } else output += "00:";
-    if (seconds >= 10) output += seconds;
-    else if (seconds > 0) output += "0" + seconds;
-    else output += "00";
-    return output;
-};
 
 const RecordingTile = ({
     recording,
