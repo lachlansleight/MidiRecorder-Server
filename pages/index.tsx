@@ -32,7 +32,7 @@ interface RecordingGroupWithWeek {
 const HomePage = (): JSX.Element => {
     const [selecting, setSelecting] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
-    const [recordings, setRecordings] = useState<RecordingGroup[]>([]);
+    const [, setRecordings] = useState<RecordingGroup[]>([]);
     const [recordingsWithWeeks, setRecordingsWithWeeks] = useState<RecordingGroupWithWeek[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
