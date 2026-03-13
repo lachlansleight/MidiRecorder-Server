@@ -89,7 +89,8 @@ const RecordingTile = ({
 
         const proportionSum = sortedSemitones.reduce((acc, item) => acc + item.proportion, 0);
 
-        const mainHue = sortedSemitones.slice(-1)[0].hue;
+        // console.log({sortedSemitones, length: sortedSemitones.length, first: sortedSemitones[0], last: sortedSemitones.slice(-1)[0]});
+        const mainHue = sortedSemitones.slice(-1)[0]?.hue ?? 0;
         const usefulSemitones = sortedSemitones
             .sort((a, b) => Math.abs(b.hue + 360 - mainHue) - Math.abs(a.hue + 360 - mainHue))
             .map(semi => ({
