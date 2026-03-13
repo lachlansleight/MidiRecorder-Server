@@ -13,6 +13,7 @@ import RecordingTitle from "components/recordings/RecordingTitle";
 import StarToggle from "components/recordings/StarToggle";
 import RecordingInfoPanel from "components/recordings/RecordingInfoPanel";
 import RecordingPlayer from "components/recordings/RecordingPlayer";
+import Button from "components/controls/Button";
 
 const RecordingPage = ({ recording }: { recording: Recording }): JSX.Element => {
     const parentRef = useRef<HTMLDivElement>(null);
@@ -26,6 +27,7 @@ const RecordingPage = ({ recording }: { recording: Recording }): JSX.Element => 
     const [canvasHeight, setCanvasHeight] = useState(800);
     const [showingInfoPanel, setShowingInfoPanel] = useState(false);
     const [displayDuration, setDisplayDuration] = useState(10);
+    const [open, setOpen] = useState(false);
 
     const [activeElement, setActiveElement] = useState<Element | null>(null);
     useEffect(() => {
@@ -130,19 +132,27 @@ const RecordingPage = ({ recording }: { recording: Recording }): JSX.Element => 
                     } else setPaused(!paused);
                 }}
             >
-                <RecordingCanvas
-                    recording={recording}
-                    width={canvasWidth}
-                    height={canvasHeight}
-                    playbackTime={playbackTime}
-                    displayDuration={Math.min(displayDuration, recording.duration)}
-                />
-                <RecordingPlayer
-                    recording={recording}
-                    playing={playing}
-                    paused={paused}
-                    onPlaybackTimeChanged={handlePlaybackTimeChanged}
-                />
+                {open && (
+                    <RecordingCanvas
+                        recording={recording}
+                        width={canvasWidth}
+                        height={canvasHeight}
+                        playbackTime={playbackTime}
+                        displayDuration={Math.min(displayDuration, recording.duration)}
+                    />
+                )}
+                {open ? (
+                    <RecordingPlayer
+                        recording={recording}
+                        playing={playing}
+                        paused={paused}
+                        onPlaybackTimeChanged={handlePlaybackTimeChanged}
+                    />
+                ) : (
+                    <div className="absolute top-0 left-0 w-screen h-screen grid place-items-center">
+                        <Button onClick={() => setOpen(true)}>Initialise</Button>
+                    </div>
+                )}
 
                 <div
                     className={`absolute grid place-items-center text-3xl w-full bg-black bg-opacity-50 ${
