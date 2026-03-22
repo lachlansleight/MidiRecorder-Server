@@ -20,6 +20,8 @@ const cors = initMiddleware(
     })
 );
 
+export const revalidate = 0;
+
 export default async (req: NextApiRequest, res: NextApiResponse): Promise<void> => {
     await cors(req, res);
     try {
