@@ -30,6 +30,15 @@ const RecordingPage = ({ recording }: { recording: Recording }): JSX.Element => 
     const [open, setOpen] = useState(false);
 
     const [activeElement, setActiveElement] = useState<Element | null>(null);
+
+    useEffect(() => {
+        if(!navigator.userActivation) {
+            setOpen(false);
+        } else {
+            setOpen(true);
+        }
+    }, []);
+
     useEffect(() => {
         const handleFocusIn = () => {
             if (!document?.activeElement) {
