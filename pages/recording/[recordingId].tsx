@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import axios from "axios";
@@ -34,7 +34,7 @@ const RecordingPage = ({ recording }: { recording: Recording }): JSX.Element => 
     const [activeElement, setActiveElement] = useState<Element | null>(null);
 
     useEffect(() => {
-        if(!(navigator as any)?.userActivation) {
+        if (!(navigator as any)?.userActivation) {
             setOpen(false);
         } else {
             setOpen(true);

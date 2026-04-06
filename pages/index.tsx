@@ -140,7 +140,9 @@ const HomePage = (): JSX.Element => {
             const groupsWithWeeks: Record<string, RecordingGroupWithWeek> = {};
 
             //fill full array
+            const curYear = dayjs().year();
             for (let i = oldestRecording.year(); i <= newestRecording.year(); i++) {
+                if (i === curYear) continue;
                 for (let j = 0; j < 12; j++) {
                     if (i === oldestRecording.year() && j < oldestRecording.month()) continue;
                     if (i === newestRecording.year() && j >= newestRecording.month()) continue;
